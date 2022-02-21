@@ -21,7 +21,9 @@ export default {
   },
 
   // Global CSS: https://go.nuxtjs.dev/config-css
-  css: [],
+  css: [
+    '@/assets/styles.scss'
+  ],
 
   // Plugins to run before rendering page: https://go.nuxtjs.dev/config-plugins
   plugins: [],
@@ -39,6 +41,31 @@ export default {
   modules: [
     // https://go.nuxtjs.dev/pwa
     '@nuxtjs/pwa',
+    [
+      '@nuxtjs/firebase',
+      {
+        config: {
+          apiKey: "AIzaSyARn9k-pWlClBjS-xvmLRyLulLbdiT5cyg",
+          authDomain: "vuello-23940.firebaseapp.com",
+          projectId: "vuello-23940",
+          storageBucket: "vuello-23940.appspot.com",
+          messagingSenderId: "230212160859",
+          appId: "1:230212160859:web:0e566862fcc3ec41155e7e"
+        },
+        services: {
+          auth: {
+            persistence: 'local', // default
+            initialize: {
+              onAuthStateChangedAction: 'onAuthStateChangedAction',
+              subscribeManually: false
+            },
+            ssr: false, // default 
+          }          ,
+          firestore: true,
+          storage: true
+        }
+      }
+    ]
   ],
 
   // PWA module configuration: https://go.nuxtjs.dev/pwa
