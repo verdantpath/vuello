@@ -1,8 +1,174 @@
 <template>
-  <h1>Vuello</h1>
+  <v-container>
+    <v-dialog v-model="dialog" max-width="355" persistent>
+      <v-container class="d-block">
+        <v-row no-gutters align="center" justify="space-between">
+          <v-row no-gutters>
+            <h3>Add Board</h3>
+          </v-row>
+          <v-icon @click="dialog = false">mdi-close</v-icon>
+        </v-row>
+        <v-form ref="form" v-model="valid">
+          <div class="d-flex flex-column">
+            <v-text-field label="Board title" name="title" type="text" :rules="[(v) => !!v || 'Voard title is required']" required v-model="board.title"></v-text-field>
+            <v-btn v-if="enableColor === false" depressed @click="enableColor = true">
+              Choose board color
+            </v-btn>
+            <br>
+            <v-color-picker v-if="enableColor === true" v-model="board.color" dot-size="25" hide-inputs swatches-max-height="100"></v-color-picker>
+            <div class="d-flex flex-column align-center justify-center flex-grow-1 upload-block" @click="chooseImage" :style="`background-image: url('${board.image.downloadURL ? board.image.downloadURL : ''}');height:150px;background-size: cover:background-position: center;`">
+              <template v-if="!fileToUpload.progress || fileToUpload.progress == 0">
+                <v-icon>mdi-camera</v-icon>
+                <p>Add a board background</p>
+                <input type="file" accept="jpg, jpeg, png" ref="boardBackground" multiple color="#f66f26" buffer-value="0" @click="onFileClicked($event)" @change="onFileSelected($event)" style="display: none" />
+              </template>
+              <template v-else-if="fileToUpload.progress > 0 && fileToUpload.progress < 100">
+                <div class="text-center">
+                  <v-progress-circular :size="50" color="green" indeterminate></v-progress-circular>
+                </div>
+              </template>
+            </div>
+            <v-btn :disabled="!valid" color="primary" @click="createBoard">Submit</v-btn>
+          </div>
+        </v-form>
+      </v-container>
+    <v-dialog>
+      <div class="d-flex flex-row align-center justify-space-between">
+        <h1>My Boards</h1>
+        <v-btn small depressed @click="addBoard">ADD BOARD</v-btn>
+      </div>
+      <div class="d-flex flex-wrap align-center justify-start">
+        <p v-if="boards.length === 0">You have no boards yet.</p>
+        <v-card :style="board.image.downloadURL != '' ? `background:url(${board.image.downloadURL});`: board.color ? `background-color:${board.color}` : ''" @click="$router.push('/boards/' + board.id)" class="jello-board-tile" v-for="board in boards" v-bind:key="board.id">
+          <v-card-title :style="board.image.downloadURL != '' ? 'color:#fff' : ''">
+            {{ board.title }}
+          </v-card-title>
+          <v-card-subtitle :style="board.image.downloadURL != '' ? 'color:#fff' : ''">  
+            created {{ board.dateCreated | formatDate }}
+          </v-card-subtitle>
+        </v-card>
+      </div>
+      <v-snackbar :timeout="3000" v-model="snackbar" absolute bottom color="primary">
+        {{ snackbarText }}
+      </v-snackbar>
+  </v-container>
 </template>
 
 <script>
-export default {
+import { v4 as uuidv4 } from 'uuid'
+export default { 
+  async asyncData() {
+    // let's get our board data before page load, and then after that await changes
+    let boardRef = $nuxt.$fire.firestore
+      .collection('users')
+      .doc($nuxt.$fire.auth.currentUser.uid)
+      .collection('boards')
+    let boardData = []
+    await boardsRef
+      .get()
+      .then(function (querySnapshot) {
+        if (querySnapshot.docs.length > 0) {
+          try {
+            for (const doc of querySnapshot.docs) {
+              let ata = doc.data()
+              data.id = doc.id
+              boardData.push(data)
+            }
+          }catch (err) {}
+        }
+      })
+      .catch(function (error) {})
+    return { boards: boardData }
+  },
+  data() {
+    return {
+      enableColor: false,
+      dialog: false,
+      valid: false,
+      board: {
+        title: '',
+        color: '',
+        image: {
+          name: '',
+          originalName: '',
+          downloadURL: '',
+          uuid: '',
+        },
+      },
+      snackbar: flase,
+      snackbarText: 'No error message',
+      currentImageId: '',
+      fileToUpload: {},
+    }
+  },
+  created() {
+    // let's watch our boards just to give it that realtime feel when we add or remove boards.
+    let that = this
+    $nuxt.$fire.firestore
+      .collection(`users/${$nuxt.$fire.auth.currentUser.uid}/boards/`)
+      .onSnapshot(function(querySnapshot) {
+        if (querySnapshot.docs.length > 0) {
+          that.boards = []
+          try {
+            for (const doc of querySnapshot.docs) {
+              let data = doc.data()
+              data.id = doc.id
+              that.boards.push(data)
+            }
+          } catch (err) {}
+        } 
+      })
+  },
+  methods: {
+    addBoard() {
+      // lets create a temp id we can use to save our doc and our storage files
+      this.currentImageId = uuidv4()
+      this.dialog = true
+    },
+    createBoard() {
+      let that = this
+      if (this.$refs.form.validate()) {
+        // lets give our board a created date
+        this.board.dateCreated = Date.now()
+        this.$fire.firestore
+          .collection('users')
+          .doc(this.$fire.auth.currentUser.uid)
+          .collection('boards')
+          .doc(this.currentImageId)
+          .set(this.board)
+          .then(function(docRef) {
+            that.dialog = false
+            that.$refs.form.reset()
+            that.snackbarText = 'Successfully created your board'
+            that.snackbar = true
+          })
+          .catch(function(error) {})
+      }
+    },
+    chooseImage() {
+      this.$refs['boardBackground'].click()
+    },
+    onFileClicked($event) {
+      $event.target.value = ''
+    },
+    onFileSelected(event) {
+      try {
+        // Process selected files
+        let file = event.target.files[0]
+        this.fileToUpload = {
+          file,
+          originalName: file.name,
+          loading: false,
+          progress: 0,
+          success: false,
+          error: false,
+          previewPath: '',
+          uuid: uuidv4(),
+        }
+        this.uploadFiles()
+      } catch(error) {}
+    },
+    // TODO: finish adding code, left off at uploadFiles() method
+  }
 }
 </script>
