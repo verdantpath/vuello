@@ -10,7 +10,7 @@
         </v-row>
         <v-form ref="form" v-model="valid">
           <div class="d-flex flex-column">
-            <v-text-field label="Board title" name="title" type="text" :rules="[(v) => !!v || 'Voard title is required']" required v-model="board.title"></v-text-field>
+            <v-text-field label="Board title" name="title" type="text" :rules="[(v) => !!v || 'Board title is required']" required v-model="board.title"></v-text-field>
             <v-btn v-if="enableColor === false" depressed @click="enableColor = true">
               Choose board color
             </v-btn>
@@ -32,7 +32,7 @@
           </div>
         </v-form>
       </v-container>
-    <v-dialog>
+    </v-dialog>
       <div class="d-flex flex-row align-center justify-space-between">
         <h1>My Boards</h1>
         <v-btn small depressed @click="addBoard">ADD BOARD</v-btn>
@@ -59,7 +59,7 @@ import { v4 as uuidv4 } from 'uuid'
 export default { 
   async asyncData() {
     // let's get our board data before page load, and then after that await changes
-    let boardRef = $nuxt.$fire.firestore
+    let boardsRef = $nuxt.$fire.firestore
       .collection('users')
       .doc($nuxt.$fire.auth.currentUser.uid)
       .collection('boards')
@@ -70,11 +70,11 @@ export default {
         if (querySnapshot.docs.length > 0) {
           try {
             for (const doc of querySnapshot.docs) {
-              let ata = doc.data()
+              let data = doc.data()
               data.id = doc.id
               boardData.push(data)
             }
-          }catch (err) {}
+          } catch (err) {}
         }
       })
       .catch(function (error) {})
@@ -95,7 +95,7 @@ export default {
           uuid: '',
         },
       },
-      snackbar: flase,
+      snackbar: false,
       snackbarText: 'No error message',
       currentImageId: '',
       fileToUpload: {},
@@ -168,7 +168,62 @@ export default {
         this.uploadFiles()
       } catch(error) {}
     },
-    // TODO: finish adding code, left off at uploadFiles() method
-  }
+    uploadFiles() {
+      const itemFilename = thisFileToUpload.uuid + '-' + this.fileToUpload.file.name
+      const itemName = 'images' + '/' + this.$fire.auth.currentUser.uid + '/' + 'boards' + '/' + this.currentImageId + '/' + itemFilename
+
+      const itemRef = this.$fire.storage.ref().child(itemName)
+      const itemMeta = {
+        customMetadata: {
+          owner: this.$fire.auth.currentUser.uid,
+        },
+      }
+
+      // Action upload
+      const task = itemRef.put(this.fileToUpload.file, itemMeta)
+
+      // Watch for upload status changes
+      return task.on(
+        'state_changed',
+        // Handle progress
+        (progress) => {
+          // set upload progress on item
+          this.fileToUpload.progress = (progress.bytesTransferred / progress.totalBytes) * 100
+        },
+        // Handle unsuccessful uploads
+        (error) => {
+          this.fileToUpload.failed = true
+          this.fileToUpload.error = error
+          return false
+        },
+        // Handle successful uploads on complete
+        async () => {
+          const url = await task.snapshot.ref
+            .getDownloadURL()
+            .catch((e) => false)
+          // store form media
+          this.board.image = {
+            name: itemFilename,
+            originalName: this.fileToUpload.file.name,
+            downloadURL: url,
+            uuid: this.fileToUpload.uuid,
+          }
+        }
+      )
+    },
+  },
 }
 </script>
+<style lang="scss">
+  .v-dialog {
+    border-radius: 15px;
+    background-color: $white;
+    padding: 15px;
+  }
+  .upload-block {
+    border: 2px dashed #adadad;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+  }
+</style>
