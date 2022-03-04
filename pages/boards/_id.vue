@@ -50,7 +50,7 @@
       </v-navigation-drawer>
     </div>
     <h1>{{ board.title }}</h1>
-    <small>created {{ board.dateCreated | formatDate }} </small>
+    <small>created {{ board.dateCreated | formatDate }}</small>
     <div class="d-flex flex-row pr-6 pt-3">
       <div v-for="list in board.lists" @drop="drop($event, list.id)" @dragover="allowDrop($event)" class="d-flex flex-column pt-3 mr-6 list" :key="list.id">
         <div class="d-flex flex-row justify-space-between">
@@ -104,7 +104,7 @@
             </v-card-text>
             <v-card-actions>
               <v-spacer></v-spacer>
-              <v-btn color="blue darken-1" text @click="dialog=false">Close</v-btn>
+              <v-btn color="blue darken-1" text @click="dialog = false">Close</v-btn>
               <v-btn color="blue darken-1" text @click="createList()">Save</v-btn>
             </v-card-actions>
           </v-card>
@@ -127,8 +127,8 @@
           <v-card-actions>
             <v-spacer></v-spacer>
             <v-btn color="red darken-1" text @click="deleteCard()">Delete</v-btn>
-            <v-btn color="red darken-1" text @click="dialogEditCard = false">Close</v-btn>
-            <v-btn color="red darken-1" text @click="updateCard()">Save</v-btn>
+            <v-btn color="blue darken-1" text @click="dialogEditCard = false">Close</v-btn>
+            <v-btn color="blue darken-1" text @click="updateCard()">Save</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -147,7 +147,7 @@
           title: '',
         },
         card: {
-          title:'',
+          title: '',
         },
         currentCard: {},
         cardDraggedId: '',
@@ -176,7 +176,7 @@
         })
         .catch(function (error) {})
       // if (boardData.color != '' || boardData.image.downloadURL ! = '') {
-      //    $nuxt.$emit('togle-alt-topbar')
+      //    $nuxt.$emit('toggle-alt-topbar')
       //  }
       return { board: boardData }
     },
@@ -228,7 +228,7 @@
           if (list.id === newlistId) {
             newListIndex = tempListCount
           }
-          if (that.currentCard.listId === list) {
+          if (that.currentCard.listId === list.id) {
             // correct list, now find card
             tempListIndex = tempListCount
             for (const card of list.cards) {
@@ -266,7 +266,7 @@
         let count = 0
         for (const list of that.board.lists) {
           if (list.id == listId) {
-            index - count
+            index = count
           }
           count++
         }
@@ -298,7 +298,7 @@
             if (index != -1) {
               // we found the list, now push our card
               if (that.board.lists[index].cards) {
-                that.board.lists[index].cards.pupsh(that.card)
+                that.board.lists[index].cards.push(that.card)
               } else {
                 that.board.lists[index].cards = []
                 that.board.lists[index].cards.push(that.card)
@@ -314,10 +314,103 @@
         this.dialogEditCard = true
         this.currentCard = card
       },
+      async updateCard() {
+        let that = this
+        that.dialogEditCard = false
+        for (const list of that.board.lists) {
+          if (that.currentCard.listId === list.id) {
+            // correct list, now find card
+            for (const card of list.cards) {
+              if (card.id === that.currentCard.id) {
+                card = that.currentCard
+              }
+            }
+          }
+        }
+        await that.updateBoard()
+      },
+      async deleteCard() {
+        let that = this
+        that.dialogEditCard = false
+        let i = 0
+        let j = 0
+        let index = {
+          list: -1,
+          card: -1,
+        }
+        for (const list of that.board.lists) {
+          if (that.currentCard.listId === list.id) {
+            // correct list, now find card
+            for (const card of list.cards) {
+              if (card.id === that.currentCard.id) {
+                index.list = i
+                index.card = j
+              }
+              j++
+            }
+          }
+          i++
+        }
+        if (index.list > -1) {
+          that.board.lists[index.list].cards.splice(index.card, 1)
+          await that.updateBoard()
+        }
+      },
+      async deleteBoard() {
+        let that = this
+        try {
+          await that.$fire.firestore
+          .collection('users')
+          .doc(that.$fire.auth.currentUser.uid)
+          .collection('boards')
+          .doc(that.board.id).delete().then(() => {
+            $nuxt.$router.push('/')
+          }).catch(() => {
+
+          })
+        } catch(error) {
+          $nuxt.$router.push('/')
+        }
+      },
+      async updateBoard() {
+        let that = this
+        await that.$fire.firestore
+          .collection('users')
+          .doc(that.$fire.auth.currentUser.uid)
+          .collection('boards')
+          .doc(that.board.id)
+          .update(that.board, { merge: true })
+      }
     },
   }
 </script>
 
-<style>
-
+<style lang="scss" scoped>
+.board {
+  padding: 12px;
+  height: 100vh;
+  overflow: scroll;
+  .list {
+    min-width: 250px;
+    background-color: rgb(228 228 228 / 35%);
+    padding: 25px;
+    border-radius: 12px;
+    min-height: 70vh;
+  }
+  .create-list {
+    background-color: rgb(228 228 228 / 35%);
+  }
+  a {
+    text-decoration: none;
+  }
+  .menu-items a {
+    color: $text-color;
+    padding: 10px 0px 10px 3px;
+    font-size: 24px;
+  }
+  .jello-topbar {
+    background-color: rgb(255, 255, 255, 0);
+    padding: 0px !important;
+  }
+}
 </style>
