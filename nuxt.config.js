@@ -1,4 +1,5 @@
 import colors from 'vuetify/es5/util/colors'
+import secure from './secure'
 
 export default {
   // Disable server-side rendering: https://go.nuxtjs.dev/ssr-mode
@@ -49,14 +50,7 @@ export default {
     [
       '@nuxtjs/firebase',
       {
-        config: {
-          apiKey: "AIzaSyARn9k-pWlClBjS-xvmLRyLulLbdiT5cyg",
-          authDomain: "vuello-23940.firebaseapp.com",
-          projectId: "vuello-23940",
-          storageBucket: "vuello-23940.appspot.com",
-          messagingSenderId: "230212160859",
-          appId: "1:230212160859:web:0e566862fcc3ec41155e7e"
-        },
+        config: secure.firebaseConfig,
         services: {
           auth: {
             persistence: 'local', // default
@@ -88,4 +82,8 @@ export default {
 
   // Build Configuration: https://go.nuxtjs.dev/config-build
   build: {},
+
+  env : {
+
+  }
 }

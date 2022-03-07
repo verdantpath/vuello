@@ -88,3 +88,6 @@ sw.*
 
 # Vim swap files
 *.swp
+
+# secure folder that is ignored in repo
+/secure
